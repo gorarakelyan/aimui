@@ -116,6 +116,8 @@ class PanelChart extends Component {
       'scaleLinear',
       'scaleLog',
     ];
+
+    this.trainSteps = {};
   }
 
   componentDidMount() {
@@ -413,7 +415,7 @@ class PanelChart extends Component {
   drawLines = () => {
     const handleLineClick = this.handleLineClick;
     const { xAlignment } = this.context.chart.settings;
-    let trainSteps = {};
+    this.trainSteps = {};
     this.context.traceList?.traces.forEach(traceModel => traceModel.series.forEach(series => {
       if (traceModel.chart !== this.props.index) {
         return;
@@ -421,12 +423,12 @@ class PanelChart extends Component {
       const { run, metric, trace } = series;
       let trainKey = metric.name + '_' + run.run_hash;
       if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'train') {
-        trainSteps[trainKey] = trace.data;
+        this.trainSteps[trainKey] = trace.data;
       }
       const line = d3.line()
         .x(d => {
           if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'val') {
-            const lastTrainStepInEpoch = _.findLast(trainSteps[trainKey], elem => elem[2] === d[2]);
+            const lastTrainStepInEpoch = _.findLast(this.trainSteps[trainKey], elem => elem[2] === d[2]);
             return this.state.chart.xScale(lastTrainStepInEpoch[this.getAlignmentIndex()]);
           }
           return this.state.chart.xScale(d[this.getAlignmentIndex()]);
@@ -508,15 +510,16 @@ class PanelChart extends Component {
 
   drawHoverAttributes = () => {
     const focused = this.context.chart.focused;
+    const { xAlignment } = this.context.chart.settings;
     if (focused.runHash === null || focused.circle.active === false) {
       this.hideActionPopUps(false);
     }
-    const step = focused.circle.active ? focused.circle.step : focused.step;
+    let step = focused.circle.active ? focused.circle.step : focused.step;
     if (step === null || step === undefined) {
       return;
     }
 
-    const x = this.state.chart.xScale(step);
+    let x = this.state.chart.xScale(step);
     const { height } = this.state.plotBox;
 
     // Draw hover line
@@ -544,12 +547,27 @@ class PanelChart extends Component {
         return;
       }
       const { run, metric, trace } = series;
-      const val = this.context.getMetricStepValueByStepIdx(trace.data, step);
+      let val = null;
+      let valStep = null;
+      if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'val') {
+        let trainKey = metric.name + '_' + run.run_hash;
+        let epoch = this.context.getMetricStepDataByStepIdx(this.trainSteps[trainKey], step)?.[2];
+        let [value, validationStep] = this.context.getValMetricStepDataByEpochIdx(trace.data, epoch) || [];
+        if (value !== null && value !== undefined) {
+          val = value;
+          x = this.state.chart.xScale(_.findLast(this.trainSteps[trainKey], elem => elem[2] === epoch)?.[1]);
+        }
+        if (step !== undefined) {
+          valStep = validationStep;
+        }
+      } else {
+        val = this.context.getMetricStepValueByStepIdx(trace.data, step);
+      }
       if (val !== null) {
         const y = this.state.chart.yScale(val);
         const traceContext = this.context.contextToHash(trace.context);
         const circle = this.circles.append('circle')
-          .attr('class', 'HoverCircle HoverCircle-' + step + ' HoverCircle-' + this.context.traceToHash(run.run_hash, metric.name, traceContext))
+          .attr('class', 'HoverCircle HoverCircle-' + (step) + ' HoverCircle-' + this.context.traceToHash(run.run_hash, metric.name, traceContext))
           .attr('cx', x)
           .attr('cy', y)
           .attr('r', circleRadius)
@@ -562,7 +580,7 @@ class PanelChart extends Component {
           .attr('clip-path', 'url(#lines-rect-clip-' + this.props.index + ')')
           .style('fill', this.context.traceList?.grouping?.color?.length > 0 ? traceModel.color : this.context.getMetricColor(run, metric, trace))
           .on('click', function () {
-            handlePointClick(step, run.run_hash, metric.name, traceContext);
+            handlePointClick(valStep ?? step, run.run_hash, metric.name, traceContext);
           });
 
         if (focusedCircle.active === true

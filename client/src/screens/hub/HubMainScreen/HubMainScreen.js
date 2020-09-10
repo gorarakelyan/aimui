@@ -486,6 +486,22 @@ class HubMainScreen extends React.Component {
     return null;
   };
 
+  getValMetricStepDataByEpochIdx = (data, epoch) => {
+    if (data === null || !data) {
+      return null;
+    }
+
+    for (let i = 0; i < data.length; i++) {
+      if (data[i][2] === epoch) {
+        return data[i];
+      } else if (data[i][2] > epoch) {
+        return null;
+      }
+    }
+
+    return null;
+  };
+
   getTraceData = (runHash, metricName, context) => {
     let matchedRun = null, matchedMetric = null, matchedTrace = null, data = null;
 
@@ -657,6 +673,7 @@ class HubMainScreen extends React.Component {
             getTraceData: this.getTraceData,
             getMetricStepValueByStepIdx: this.getMetricStepValueByStepIdx,
             getMetricStepDataByStepIdx: this.getMetricStepDataByStepIdx,
+            getValMetricStepDataByEpochIdx: this.getValMetricStepDataByEpochIdx,
             getTFSummaryScalars: this.getTFSummaryScalars,
             getMetricColor: this.getMetricColor,
             isAimRun: this.isAimRun,
