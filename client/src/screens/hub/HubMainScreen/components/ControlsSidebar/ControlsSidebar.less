@@ -54,6 +54,14 @@
       color: var(--grey);
     }
   }
+
+  &.column {
+    flex-direction: column;
+
+    .Icon {
+      line-height: 0.5em;
+    }
+  }
 }
 
 .ControlsSidebar__item__popup  {
@@ -84,4 +92,24 @@
 .ControlsSidebar__item__popup__body__field {
   margin-top: var(--component-spacing-xs);
   margin-right: var(--component-spacing-xs);
+}
+
+.ControlsSidebar__item__popup__list__item {
+  padding: var(--component-spacing-xs) var(--component-spacing-sm);
+  border-bottom: 1px solid var(--grey-lighter);
+  text-transform: capitalize;
+  cursor: pointer;
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: var(--grey-bg);
+  }
+
+  &.active {
+    background-color: var(--primary);
+    color: #FFF;
+  }
 }

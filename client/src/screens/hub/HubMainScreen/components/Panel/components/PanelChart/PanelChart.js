@@ -4,6 +4,8 @@ import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Color from 'color';
+import moment from 'moment';
+import _ from 'lodash';
 
 import * as classes from '../../../../../../../constants/classes';
 import * as storeUtils from '../../../../../../../storeUtils';
@@ -136,6 +138,17 @@ class PanelChart extends Component {
         this.parentNode.appendChild(this);
       });
     };
+  };
+
+  getAlignmentIndex = () => {
+    switch(this.context.chart.settings.xAlignment) {
+      case 'step':
+        return 1;
+      case 'epoch':
+        return 1;
+      case 'absolute_time':
+        return 3;
+    }
   };
 
   renderChart = () => {
@@ -279,25 +292,32 @@ class PanelChart extends Component {
 
   drawAxes = (cb) => {
     const { width, height, margin } = this.state.visBox;
+    const { xAlignment } = this.context.chart.settings;
 
-    let xNum = 0, xMax = 0, xSteps = [];
+    let xNum = 0, xMax = 0, xMin = Infinity, xSteps = [];
 
     this.context.traceList?.traces.forEach(traceModel => traceModel.series.forEach(series => {
       if (traceModel.chart !== this.props.index) {
         return;
       }
-      const {run, metric, trace} = series;
-      if (trace.num_steps > xMax) {
-        xMax = trace.num_steps;
+      const {run, metric, trace, maxStep, maxEpoch, maxTime, minTime} = series;
+      const max = trace.num_steps; // xAlignment === 'step' || xAlignment === 'epoch' ? maxStep : xAlignment === 'absolute_time' ? maxTime : null;
+      const min = xAlignment === 'absolute_time' ? minTime : 0;
+
+      if (max > xMax) {
+        xMax = max;
+      }
+      if (min < xMin) {
+        xMin = min;
       }
       if (trace.data.length > xNum) {
         xNum = trace.data.length;
-        xSteps = trace.data.map(s => s[1]);
+        xSteps = trace.data.map(s => s[this.getAlignmentIndex()]);
       }
     }));
 
     const xScale = d3.scaleLinear()
-      .domain([0, xMax])
+      .domain([xMin, xMax])
       .range([0, width - margin.left - margin.right]);
 
     let yMax = null, yMin = null;
@@ -392,14 +412,28 @@ class PanelChart extends Component {
 
   drawLines = () => {
     const handleLineClick = this.handleLineClick;
+    const { xAlignment } = this.context.chart.settings;
+    let trainSteps = {};
     this.context.traceList?.traces.forEach(traceModel => traceModel.series.forEach(series => {
       if (traceModel.chart !== this.props.index) {
         return;
       }
       const { run, metric, trace } = series;
+      let trainKey = metric.name + '_' + run.run_hash;
+      if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'train') {
+        trainSteps[trainKey] = trace.data;
+      }
       const line = d3.line()
-        .x(d => this.state.chart.xScale(d[1]))
-        .y(d => this.state.chart.yScale(d[0]))
+        .x(d => {
+          if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'val') {
+            const lastTrainStepInEpoch = _.findLast(trainSteps[trainKey], elem => elem[2] === d[2]);
+            return this.state.chart.xScale(lastTrainStepInEpoch[this.getAlignmentIndex()]);
+          }
+          return this.state.chart.xScale(d[this.getAlignmentIndex()]);
+        })
+        .y(d => {
+          return this.state.chart.yScale(d[0]);
+        })
         .curve(d3[this.curves[5]]);
 
       this.lines.append('path')
@@ -435,7 +469,7 @@ class PanelChart extends Component {
       const { run: runMax, metric: metricMax, trace: traceMax } = traceModel.aggregation.max;
 
       const area = d3.area()
-        .x((d, i) => this.state.chart.xScale(d[1]))
+        .x((d, i) => this.state.chart.xScale(d[this.getAlignmentIndex()]))
         .y0((d, i) => this.state.chart.yScale(d[0]))
         .y1((d, i) => this.state.chart.yScale(traceMin.data[i][0]))
         .curve(d3[this.curves[5]]);
@@ -451,7 +485,7 @@ class PanelChart extends Component {
         });;
 
       const line = d3.line()
-        .x(d => this.state.chart.xScale(d[1]))
+        .x(d => this.state.chart.xScale(d[this.getAlignmentIndex()]))
         .y(d => this.state.chart.yScale(d[0]))
         .curve(d3[this.curves[5]]);
 
@@ -1171,6 +1205,9 @@ class PanelChart extends Component {
                 {this.context.isTFSummaryScalar(run) &&
                   <> (local step: {point[4]}) </>
                 }
+              </UI.Text>
+              <UI.Text type='grey' small>
+                Time: {moment.unix(point[3]).format('HH:mm · D MMM, YY')}
               </UI.Text>
             </div>
           </PopUp>

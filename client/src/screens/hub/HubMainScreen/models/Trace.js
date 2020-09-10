@@ -75,6 +75,7 @@ export default class Trace {
     while (true) {
       const values = [];
       let step = null;
+      let epoch = null;
       let timestamp = null;
       this.series.forEach(s => {
         const point = s.getPoint(idx);
@@ -82,11 +83,12 @@ export default class Trace {
           values.push(point[0]);
           // TODO: Aggregate step(?) and relative time(!)
           step = point[1];
+          epoch = point[2];
           timestamp = point[3];
         }
       });
       if (values.length > 0) {
-        trace.data.push([aggFunc(values), step, null, timestamp]);
+        trace.data.push([aggFunc(values), step, epoch, timestamp]);
       } else {
         break;
       }

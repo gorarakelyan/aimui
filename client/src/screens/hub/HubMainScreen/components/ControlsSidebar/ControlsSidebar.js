@@ -9,9 +9,10 @@ import GroupByStyle from './components/GroupByStyle/GroupByStyle';
 import GroupByChart from './components/GroupByChart/GroupByChart';
 import Aggregate from './components/Aggregate/Aggregate';
 import UI from '../../../../../ui';
+import ControlsSidebarXAlignment from './components/ControlsSidebarXAlginment/ControlsSidebarXAlignment';
 
 function ControlsSidebar() {
-  let { contextFilter, setContextFilter, runs, chart, toggleOutliers } = useContext(HubMainScreenContext);
+  let { contextFilter, setContextFilter, runs, chart, toggleOutliers, changeXAlignment } = useContext(HubMainScreenContext);
 
   const { groupByColor, groupByStyle, groupByChart, aggregated } = contextFilter;
 
@@ -36,10 +37,14 @@ function ControlsSidebar() {
           disabled={groupByColor.length === 0 && groupByStyle.length === 0 && groupByChart.length === 0}
         />
         <UI.Line />
-        <ControlsSiderbarToggleOutliers 
+        <ControlsSiderbarToggleOutliers
           disabled={runs.isLoading || runs.isEmpty}
           displayOutliers={chart.settings.displayOutliers}
           toggleOutliers={toggleOutliers}
+        />
+        <ControlsSidebarXAlignment
+          xAlignment={chart.settings.xAlignment}
+          changeXAlignment={changeXAlignment}
         />
         {/* <ControlsSidebarExport 
           disabled={runs.isLoading || runs.isEmpty} 

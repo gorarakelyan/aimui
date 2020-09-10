@@ -49,6 +49,7 @@ class HubMainScreen extends React.Component {
           settings: {
             yScale: 0,
             displayOutliers: false,
+            xAlignment: 'step'
           },
         },
 
@@ -547,6 +548,12 @@ class HubMainScreen extends React.Component {
     });
   };
 
+  changeXAlignment = (type) => {
+    this.setChartSettingsState({
+      xAlignment: type
+    });
+  };
+
   setContextFilter = (contextFilter, callback = this.groupRuns, updateURL = true) => {
     this.setState(prevState => {
       let stateUpdate = {
@@ -659,7 +666,8 @@ class HubMainScreen extends React.Component {
             traceToHash: this.traceToHash,
             updateURL: this.updateURL,
             toggleOutliers: this.toggleOutliers,
-            setContextFilter: this.setContextFilter
+            changeXAlignment: this.changeXAlignment,
+            setContextFilter: this.setContextFilter,
           }}
         >
           {this._renderContent()}
