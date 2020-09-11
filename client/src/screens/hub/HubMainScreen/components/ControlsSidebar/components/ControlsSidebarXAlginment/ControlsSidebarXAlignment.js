@@ -32,7 +32,7 @@ function ControlsSidebarXAlignment(props) {
       </div>
       {opened && (
         <div
-          className='ControlsSidebar__item__popup'
+          className='ControlsSidebar__item__popup list'
           tabIndex={0}
           ref={popupRef}
           onBlur={evt => {

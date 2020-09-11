@@ -187,7 +187,7 @@ class HubMainScreen extends React.Component {
       try {
         const encodedState = search.substr(8);
         return JSON.parse(atob(encodedState));
-      } catch(e) {
+      } catch (e) {
         return null;
       }
     }
@@ -482,45 +482,28 @@ class HubMainScreen extends React.Component {
     return null;
   };
 
-  getValMetricStepDataByEpochIdx = (data, epoch) => {
-    if (data === null || !data) {
-      return null;
-    }
-
-    for (let i = 0; i < data.length; i++) {
-      if (data[i][2] === epoch) {
-        return data[i];
-      } else if (data[i][2] > epoch) {
-        return null;
-      }
-    }
-
-    return null;
-  };
-
   getTraceData = (runHash, metricName, context) => {
-    let matchedRun = null, matchedMetric = null, matchedTrace = null, data = null;
+    let matchedRun = null, matchedMetric = null, matchedTrace = null, data = null, axesValues = null;
 
-    this.state.context.runs.data.forEach((run) => {
-      if (matchedTrace !== null) return;
-      run.metrics.forEach((metric) => {
+    this.state.context.traceList?.traces.forEach((traceModel) => {
+      traceModel.series.forEach(series => {
+        const { run, metric, trace } = series;
         if (matchedTrace !== null) return;
-        metric.traces.forEach((trace) => {
-          if (matchedTrace !== null) return;
-          if (run.run_hash === runHash && metric.name === metricName && this.contextToHash(trace.context) === context) {
-            if (matchedTrace === null) {
-              matchedRun = run;
-              matchedMetric = metric;
-              matchedTrace = trace;
-              data = trace.data;
-            }
+        if (run.run_hash === runHash && metric.name === metricName && this.contextToHash(trace.context) === context) {
+          if (matchedTrace === null) {
+            matchedRun = run;
+            matchedMetric = metric;
+            matchedTrace = trace;
+            data = trace.data;
+            axesValues = trace.axesValues
           }
-        });
-      });
+        }
+      })
     });
 
     return {
       data,
+      axesValues,
       run: matchedRun,
       metric: matchedMetric,
       trace: matchedTrace,
@@ -669,7 +652,6 @@ class HubMainScreen extends React.Component {
             getTraceData: this.getTraceData,
             getMetricStepValueByStepIdx: this.getMetricStepValueByStepIdx,
             getMetricStepDataByStepIdx: this.getMetricStepDataByStepIdx,
-            getValMetricStepDataByEpochIdx: this.getValMetricStepDataByEpochIdx,
             getTFSummaryScalars: this.getTFSummaryScalars,
             getMetricColor: this.getMetricColor,
             isAimRun: this.isAimRun,

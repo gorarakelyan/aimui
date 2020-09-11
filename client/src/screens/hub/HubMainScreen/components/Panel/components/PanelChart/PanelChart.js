@@ -142,17 +142,6 @@ class PanelChart extends Component {
     };
   };
 
-  getAlignmentIndex = () => {
-    switch(this.context.chart.settings.xAlignment) {
-      case 'step':
-        return 1;
-      case 'epoch':
-        return 1;
-      case 'absolute_time':
-        return 3;
-    }
-  };
-
   renderChart = () => {
     this.clear();
 
@@ -302,7 +291,7 @@ class PanelChart extends Component {
       if (traceModel.chart !== this.props.index) {
         return;
       }
-      const {run, metric, trace, maxStep, maxEpoch, maxTime, minTime} = series;
+      const {run, metric, trace, minTime} = series;
       const max = trace.num_steps; // xAlignment === 'step' || xAlignment === 'epoch' ? maxStep : xAlignment === 'absolute_time' ? maxTime : null;
       const min = xAlignment === 'absolute_time' ? minTime : 0;
 
@@ -312,9 +301,9 @@ class PanelChart extends Component {
       if (min < xMin) {
         xMin = min;
       }
-      if (trace.data.length > xNum) {
-        xNum = trace.data.length;
-        xSteps = trace.data.map(s => s[this.getAlignmentIndex()]);
+      if (trace.axesValues.length > xNum) {
+        xNum = trace.axesValues.length;
+        xSteps = trace.axesValues;
       }
     }));
 
@@ -414,28 +403,14 @@ class PanelChart extends Component {
 
   drawLines = () => {
     const handleLineClick = this.handleLineClick;
-    const { xAlignment } = this.context.chart.settings;
-    this.trainSteps = {};
     this.context.traceList?.traces.forEach(traceModel => traceModel.series.forEach(series => {
       if (traceModel.chart !== this.props.index) {
         return;
       }
       const { run, metric, trace } = series;
-      let trainKey = metric.name + '_' + run.run_hash;
-      if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'train') {
-        this.trainSteps[trainKey] = trace.data;
-      }
       const line = d3.line()
-        .x(d => {
-          if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'val') {
-            const lastTrainStepInEpoch = _.findLast(this.trainSteps[trainKey], elem => elem[2] === d[2]);
-            return this.state.chart.xScale(lastTrainStepInEpoch[this.getAlignmentIndex()]);
-          }
-          return this.state.chart.xScale(d[this.getAlignmentIndex()]);
-        })
-        .y(d => {
-          return this.state.chart.yScale(d[0]);
-        })
+        .x((d, i) => this.state.chart.xScale(trace.axesValues[i]))
+        .y(d => this.state.chart.yScale(d[0]))
         .curve(d3[this.curves[5]]);
 
       this.lines.append('path')
@@ -471,7 +446,7 @@ class PanelChart extends Component {
       const { run: runMax, metric: metricMax, trace: traceMax } = traceModel.aggregation.max;
 
       const area = d3.area()
-        .x((d, i) => this.state.chart.xScale(d[this.getAlignmentIndex()]))
+        .x((d, i) => this.state.chart.xScale(d[1]))
         .y0((d, i) => this.state.chart.yScale(d[0]))
         .y1((d, i) => this.state.chart.yScale(traceMin.data[i][0]))
         .curve(d3[this.curves[5]]);
@@ -484,10 +459,10 @@ class PanelChart extends Component {
         .attr('fill', Color(this.context.traceList?.grouping?.color?.length > 0 ? traceModel.color : this.context.getMetricColor(runAvg, metricAvg, traceAvg)).alpha(0.3).hsl().string())
         .on('click', function () {
           handleLineClick(d3.mouse(this));
-        });;
+        });
 
       const line = d3.line()
-        .x(d => this.state.chart.xScale(d[this.getAlignmentIndex()]))
+        .x(d => this.state.chart.xScale(d[1]))
         .y(d => this.state.chart.yScale(d[0]))
         .curve(d3[this.curves[5]]);
 
@@ -547,22 +522,7 @@ class PanelChart extends Component {
         return;
       }
       const { run, metric, trace } = series;
-      let val = null;
-      let valStep = null;
-      if (xAlignment === 'epoch' && !this.context.traceList.grouping.chart.includes('context.subset') && trace?.context?.subset === 'val') {
-        let trainKey = metric.name + '_' + run.run_hash;
-        let epoch = this.context.getMetricStepDataByStepIdx(this.trainSteps[trainKey], step)?.[2];
-        let [value, validationStep] = this.context.getValMetricStepDataByEpochIdx(trace.data, epoch) || [];
-        if (value !== null && value !== undefined) {
-          val = value;
-          x = this.state.chart.xScale(_.findLast(this.trainSteps[trainKey], elem => elem[2] === epoch)?.[1]);
-        }
-        if (step !== undefined) {
-          valStep = validationStep;
-        }
-      } else {
-        val = this.context.getMetricStepValueByStepIdx(trace.data, step);
-      }
+      let val = trace.data[trace.axesValues.indexOf(step)]?.[0] ?? null;
       if (val !== null) {
         const y = this.state.chart.yScale(val);
         const traceContext = this.context.contextToHash(trace.context);
@@ -580,7 +540,7 @@ class PanelChart extends Component {
           .attr('clip-path', 'url(#lines-rect-clip-' + this.props.index + ')')
           .style('fill', this.context.traceList?.grouping?.color?.length > 0 ? traceModel.color : this.context.getMetricColor(run, metric, trace))
           .on('click', function () {
-            handlePointClick(valStep ?? step, run.run_hash, metric.name, traceContext);
+            handlePointClick(step, run.run_hash, metric.name, traceContext);
           });
 
         if (focusedCircle.active === true
@@ -620,7 +580,7 @@ class PanelChart extends Component {
         const focusedCircleX = this.state.chart.xScale(focusedCircle.step);
         const line = this.context.getTraceData(focusedCircle.runHash, focusedCircle.metricName, focusedCircle.traceContext);
         if (line !== null) {
-          const focusedCircleVal = this.context.getMetricStepValueByStepIdx(line.data, focusedCircle.step);
+          const focusedCircleVal = line.data[line.axesValues.indexOf(focusedCircle.step)] ?? null;
           if (focusedCircleVal !== null) {
             const focusedCircleY = this.state.chart.yScale(focusedCircleVal);
 
@@ -638,7 +598,7 @@ class PanelChart extends Component {
               .attr('clip-path', 'url(#lines-rect-clip-' + this.props.index + ')')
               .style('fill', this.context.getMetricColor(line.run, line.metric, line.trace))
               .on('click', function() {
-                handlePointClick(focusedCircle.runHash,
+                handlePointClick(step, null, focusedCircle.runHash,
                   focusedCircle.metricName,
                   focusedCircle.traceContext);
               })
@@ -653,7 +613,7 @@ class PanelChart extends Component {
       const line =  this.context.getTraceData(focusedCircle.runHash, focusedCircle.metricName,
         focusedCircle.traceContext);
       if (line !== null) {
-        point = this.context.getMetricStepDataByStepIdx(line.data, focusedCircle.step);
+        point = line.data[line.axesValues.indexOf(focusedCircle.step)] ?? null;
         if (point !== null) {
           pos = this.positionPopUp(this.state.chart.xScale(focusedCircle.step),
             this.state.chart.yScale(point[0]));
@@ -1224,9 +1184,9 @@ class PanelChart extends Component {
                   <> (local step: {point[4]}) </>
                 }
               </UI.Text>
-              <UI.Text type='grey' small>
+              {/* <UI.Text type='grey' small>
                 Time: {moment.unix(point[3]).format('HH:mm · D MMM, YY')}
-              </UI.Text>
+              </UI.Text> */}
             </div>
           </PopUp>
         }

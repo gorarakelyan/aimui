@@ -6,7 +6,7 @@ import _ from 'lodash';
 import Series from './Series';
 
 export default class TraceList {
-  constructor(grouping=null) {
+  constructor(grouping = null) {
     this.traces = [];
 
     this.grouping = grouping;
@@ -19,7 +19,7 @@ export default class TraceList {
       }
      */
 
-    this.groupingFields = Object.values(this.grouping).flat().filter((v, i , self) => self.indexOf(v) === i);
+    this.groupingFields = Object.values(this.grouping).flat().filter((v, i, self) => self.indexOf(v) === i);
 
     this.groupingConfigMap = {
       colors: [],
@@ -154,7 +154,7 @@ export default class TraceList {
           value: groupVal,
           group: {},
         });
-        subGroup = subGroup[g][subGroup[g].length-1].group;
+        subGroup = subGroup[g][subGroup[g].length - 1].group;
       }
     });
 
@@ -245,7 +245,7 @@ export default class TraceList {
       });
       if (chart === null) {
         const chartsIndices = this.groupingConfigMap.charts.map(chartGroup => chartGroup.value).sort();
-        chart = chartsIndices.length ? chartsIndices[chartsIndices.length-1] + 1 : 0;
+        chart = chartsIndices.length ? chartsIndices[chartsIndices.length - 1] + 1 : 0;
         this.groupingConfigMap.charts.push({
           config: modelChartConfig,
           value: chart,
@@ -257,33 +257,46 @@ export default class TraceList {
     // Add series to trace
     const seriesModel = new Series(run, metric, trace);
     traceModel.addSeries(seriesModel);
-
-    if (!this.grouping.chart.includes('context.subset') && alignBy === 'epoch') {
-      this.applyEpochAlignment();
-    }
+    this.setAxesValues(alignBy);
   };
 
   getChartsNumber = () => {
     return this.groupingConfigMap.charts.length;
   };
 
-  applyEpochAlignment = () => {
-    let trainSteps = {};
-    this.traces.forEach(traceModel => {
-      traceModel.epochAlignedSeries = [];
-      traceModel.series.forEach(series => {
-        let epochAlignedSeries = _.cloneDeep(series);
-        const { run, metric, trace } = epochAlignedSeries;
-        let trainKey = metric.name + '_' + run.run_hash;
-        if (trace?.context?.subset === 'train') {
-          trainSteps[trainKey] = trace.data;
-        } else if (trace?.context?.subset === 'val') {
-          trace.data.forEach(point => {
-            point[1] = _.findLast(trainSteps[trainKey], elem => elem[2] === point[2])?.[1] ?? point[1];
-          });
-        }
-        traceModel.epochAlignedSeries.push(epochAlignedSeries)
-      })
-    });
+  setAxesValues = (alignBy) => {
+    switch (alignBy) {
+      case 'step':
+        this.traces.forEach(traceModel => {
+          traceModel.series.forEach(series => {
+            const { trace } = series;
+            trace.axesValues = [];
+            trace.data.forEach(point => {
+              trace.axesValues.push(point[1]);
+            });
+          })
+        });
+        break;
+      case 'epoch':
+        let trainSteps = {};
+        this.traces.forEach(traceModel => {
+          traceModel.series.forEach(series => {
+            const { run, metric, trace } = series;
+            trace.axesValues = [];
+            let trainKey = metric.name + '_' + run.run_hash;
+            trace.data.forEach(point => {
+              if (this.grouping.chart.includes('context.subset') || trace?.context?.subset === 'train') {
+                trainSteps[trainKey] = trace.data;
+                trace.axesValues.push(point[1]);
+              } else if (trace?.context?.subset === 'val') {
+                trace.axesValues.push(_.findLast(trainSteps[trainKey], elem => elem[2] === point[2])?.[1] ?? point[1]);
+              } else {
+                trace.axesValues.push(point[1]);
+              }
+            });
+          })
+        });
+        break;
+    }
   };
 }

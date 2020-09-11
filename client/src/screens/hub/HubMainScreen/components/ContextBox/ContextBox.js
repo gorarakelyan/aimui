@@ -64,11 +64,11 @@ class ContextBox extends Component {
       return;
     }
 
-    const point = this.context.getMetricStepDataByStepIdx(line.data, step);
+    const point = line.data[line.axesValues.indexOf(step)] ?? null;
 
     if (point === null) {
       // Select last point
-      step = line.data[line.data.length - 1][1];
+      step = line.axesValues[line.axesValues.length - 1];
     }
 
     this.context.setChartFocusedState({
@@ -98,8 +98,7 @@ class ContextBox extends Component {
 
     const line = this.context.getTraceData(run.run_hash, metric.name, contextHash);
 
-    let stepData = null;
-    stepData = this.context.getMetricStepDataByStepIdx(line.data, step);
+    let stepData = line.data[line.axesValues.indexOf(step)] ?? null;
     // if (line.data.length > 0 && step > line.data[line.data.length-1][1]) {
     //   stepData = this.context.getMetricStepDataByStepIdx(line.data, line.data[line.data.length-1][1]);
     // } else {
