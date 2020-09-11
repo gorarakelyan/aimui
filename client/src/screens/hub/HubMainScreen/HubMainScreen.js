@@ -152,7 +152,7 @@ class HubMainScreen extends React.Component {
         this.setSearchState(state.search, () => {
           this.searchByQuery(false).then(() => {
             this.setChartFocusedState(state.chart.focused, null, false);
-            this.setChartSettingsState(state.chart.settings, null, false);
+            this.setChartSettingsState(state.chart.settings, this.groupRuns, false);
           });
         }, false);
       } else {
@@ -334,7 +334,7 @@ class HubMainScreen extends React.Component {
     });
   };
 
-  setChartSettingsState = (settingsState, callback = null, updateURL = true) => {
+  setChartSettingsState = (settingsState, callback = this.groupRuns, updateURL = true) => {
     this.setChartState({
       // FIXME: Not pass current state value
       settings: {
@@ -436,7 +436,7 @@ class HubMainScreen extends React.Component {
     runs.forEach((run) => {
       run.metrics.forEach((metric) => {
         metric.traces.forEach((trace) => {
-          traceList.addSeries(run, metric, trace);
+          traceList.addSeries(run, metric, trace, this.state.context.chart.settings.xAlignment);
         });
       });
     });
@@ -450,10 +450,6 @@ class HubMainScreen extends React.Component {
     }), () => {
       this.reRenderChart();
     });
-  };
-
-  updateGroupsProperties = () => {
-
   };
 
   getMetricByHash = (hash) => {

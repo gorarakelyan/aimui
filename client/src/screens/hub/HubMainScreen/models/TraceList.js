@@ -131,7 +131,7 @@ export default class TraceList {
     }
   };
 
-  addSeries = (run, metric, trace) => {
+  addSeries = (run, metric, trace, alignBy = 'step') => {
     let subGroup = this.groups;
     this.groupingFields.forEach(g => {
       const groupVal = this.getRunParam(g, run, metric, trace);
@@ -257,9 +257,33 @@ export default class TraceList {
     // Add series to trace
     const seriesModel = new Series(run, metric, trace);
     traceModel.addSeries(seriesModel);
+
+    if (!this.grouping.chart.includes('context.subset') && alignBy === 'epoch') {
+      this.applyEpochAlignment();
+    }
   };
 
   getChartsNumber = () => {
     return this.groupingConfigMap.charts.length;
+  };
+
+  applyEpochAlignment = () => {
+    let trainSteps = {};
+    this.traces.forEach(traceModel => {
+      traceModel.epochAlignedSeries = [];
+      traceModel.series.forEach(series => {
+        let epochAlignedSeries = _.cloneDeep(series);
+        const { run, metric, trace } = epochAlignedSeries;
+        let trainKey = metric.name + '_' + run.run_hash;
+        if (trace?.context?.subset === 'train') {
+          trainSteps[trainKey] = trace.data;
+        } else if (trace?.context?.subset === 'val') {
+          trace.data.forEach(point => {
+            point[1] = _.findLast(trainSteps[trainKey], elem => elem[2] === point[2])?.[1] ?? point[1];
+          });
+        }
+        traceModel.epochAlignedSeries.push(epochAlignedSeries)
+      })
+    });
   };
 }
