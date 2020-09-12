@@ -522,7 +522,18 @@ class PanelChart extends Component {
         return;
       }
       const { run, metric, trace } = series;
-      let val = trace.data[trace.axesValues.indexOf(step)]?.[0] ?? null;
+
+      let val;
+      let lastStepIndex = trace.axesValues.length - 1;
+
+      if (step > trace.axesValues[lastStepIndex]) {
+        val = trace.data[lastStepIndex][0] ?? null;
+        x = this.state.chart.xScale(trace.axesValues[lastStepIndex]);
+      } else {
+        val = trace.data[trace.axesValues.indexOf(step)]?.[0] ?? null;
+        x = this.state.chart.xScale(step);
+      }
+
       if (val !== null) {
         const y = this.state.chart.yScale(val);
         const traceContext = this.context.contextToHash(trace.context);

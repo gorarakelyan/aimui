@@ -97,13 +97,14 @@ class ContextBox extends Component {
     const contextHash = this.context.contextToHash(trace.context);
 
     const line = this.context.getTraceData(run.run_hash, metric.name, contextHash);
+    let stepData;
+    let lastStepIndex = trace.axesValues.length - 1;
 
-    let stepData = line.data[line.axesValues.indexOf(step)] ?? null;
-    // if (line.data.length > 0 && step > line.data[line.data.length-1][1]) {
-    //   stepData = this.context.getMetricStepDataByStepIdx(line.data, line.data[line.data.length-1][1]);
-    // } else {
-    //   stepData = this.context.getMetricStepDataByStepIdx(line.data, step);
-    // }
+    if (step > line.axesValues[lastStepIndex]) {
+      stepData = line.data[lastStepIndex] ?? null;
+    } else {
+      stepData = line.data[line.axesValues.indexOf(step)] ?? null;
+    }
 
     const color = groupColor || this.context.getMetricColor(line.run, line.metric, line.trace);
     const colorObj = Color(color);
