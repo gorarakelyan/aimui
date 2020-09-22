@@ -8,7 +8,17 @@ function ControlsSidebarXAlignment(props) {
 
   let popupRef = useRef();
 
-  const { xAlignment, changeXAlignment } = props;
+  const xAlignment = props.settings.persistent.xAlignment;
+
+  function changeXAlignment(type) {
+    props.setChartSettingsState({
+      ...props.settings,
+      persistent: {
+        ...props.settings.persistent,
+        xAlignment: type
+      }
+    });
+  }
 
   useEffect(() => {
     if (opened && popupRef.current) {
@@ -18,18 +28,19 @@ function ControlsSidebarXAlignment(props) {
 
   return (
     <div className='ControlsSidebar__item__wrapper'>
-      <div
-        className={classNames({
-          ControlsSidebar__item: true,
-          active: opened,
-          column: true,
-        })}
-        onClick={evt => setOpened(!opened)}
-        title='Select X axes alignment'
-      >
-        <UI.Text small italic>X</UI.Text>
-        <UI.Icon i='arrow_right_alt' scale={1.4} />
-      </div>
+      <UI.Tooltip tooltip='Select X axes alignment'>
+        <div
+          className={classNames({
+            ControlsSidebar__item: true,
+            active: opened,
+            column: true,
+          })}
+          onClick={evt => setOpened(!opened)}
+        >
+          <UI.Text small italic>X</UI.Text>
+          <UI.Icon i='arrow_right_alt' scale={1.4} />
+        </div>
+      </UI.Tooltip>
       {opened && (
         <div
           className='ControlsSidebar__item__popup list'
@@ -72,8 +83,8 @@ function ControlsSidebarXAlignment(props) {
 }
 
 ControlsSidebarXAlignment.propTypes = {
-  xAlignment: PropTypes.string,
-  changeXAlignment: PropTypes.func,
+  settings: PropTypes.object,
+  setChartSettingsState: PropTypes.func,
 };
 
 export default ControlsSidebarXAlignment;
