@@ -10,9 +10,11 @@ import GroupByChart from './components/GroupByChart/GroupByChart';
 import Aggregate from './components/Aggregate/Aggregate';
 import UI from '../../../../../ui';
 import ControlsSidebarXAlignment from './components/ControlsSidebarXAlginment/ControlsSidebarXAlignment';
+import ControlsSidebarZoom from './components/ControlsSidebarZoom/ControlsSidebarZoom';
+import ControlsSidebarToggleInterpolation from './components/ControlsSidebarToggleInterpolation/ControlsSidebarToggleInterpolation';
 
 function ControlsSidebar() {
-  let { contextFilter, setContextFilter, runs, chart, toggleOutliers, changeXAlignment } = useContext(HubMainScreenContext);
+  let { contextFilter, setContextFilter, runs, chart, setChartSettingsState } = useContext(HubMainScreenContext);
 
   const { groupByColor, groupByStyle, groupByChart, aggregated } = contextFilter;
 
@@ -39,12 +41,22 @@ function ControlsSidebar() {
         <UI.Line />
         <ControlsSiderbarToggleOutliers
           disabled={runs.isLoading || runs.isEmpty}
-          displayOutliers={chart.settings.displayOutliers}
-          toggleOutliers={toggleOutliers}
+          settings={chart.settings}
+          setChartSettingsState={setChartSettingsState}
+        />
+        <ControlsSidebarToggleInterpolation
+          disabled={runs.isLoading || runs.isEmpty}
+          settings={chart.settings}
+          setChartSettingsState={setChartSettingsState}
         />
         <ControlsSidebarXAlignment
-          xAlignment={chart.settings.xAlignment}
-          changeXAlignment={changeXAlignment}
+          settings={chart.settings}
+          setChartSettingsState={setChartSettingsState}
+        />
+        <UI.Line />
+        <ControlsSidebarZoom
+          settings={chart.settings}
+          setChartSettingsState={setChartSettingsState}
         />
         {/* <ControlsSidebarExport 
           disabled={runs.isLoading || runs.isEmpty} 

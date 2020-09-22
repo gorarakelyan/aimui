@@ -12,7 +12,7 @@ import HubMainScreenContext from './HubMainScreenContext/HubMainScreenContext';
 import { setItem, getItem } from '../../../services/storage';
 import { USER_LAST_SEARCH_QUERY, AIM_QL_VERSION } from '../../../config';
 import Panel from './components/Panel/Panel';
-import SearchBar from './components/SearchBar/SearchBar';
+import SearchBar from '../../../components/hub/SearchBar/SearchBar';
 import ContextBox from './components/ContextBox/ContextBox';
 import ControlsSidebar from './components/ControlsSidebar/ControlsSidebar';
 import { randomStr, deepEqual, buildUrl, getObjectValueByPath } from '../../../utils';
@@ -48,8 +48,14 @@ class HubMainScreen extends React.Component {
           },
           settings: {
             yScale: 0,
-            displayOutliers: false,
-            xAlignment: 'step'
+            zoomMode: false,
+            zoomHistory: [],
+            persistent: {
+              displayOutliers: false,
+              zoom: null,
+              interpolate: false,
+              xAlignment: 'step',
+            }
           },
         },
 
@@ -64,9 +70,6 @@ class HubMainScreen extends React.Component {
         search: {
           query: undefined,
           v: AIM_QL_VERSION,
-        },
-        searchInput: {
-          value: undefined,
         },
 
         // Filter panel
@@ -89,7 +92,7 @@ class HubMainScreen extends React.Component {
 
     this.URLStateParams = [
       'chart.focused.circle',
-      'chart.settings',
+      'chart.settings.persistent',
       'search',
       'contextFilter'
     ];
@@ -107,7 +110,7 @@ class HubMainScreen extends React.Component {
   componentDidMount() {
     this.props.completeProgress();
     this.updateWindowDimensions();
-    window.addEventListener('resize', () => this.updateWindowDimensions());
+    window.addEventListener('resize', this.updateWindowDimensions);
     this.recoverStateFromURL(window.location.search);
 
     // Analytics
@@ -115,7 +118,7 @@ class HubMainScreen extends React.Component {
   }
 
   componentWillUnmount() {
-    window.removeEventListener('resize', () => this.updateWindowDimensions());
+    window.removeEventListener('resize', this.updateWindowDimensions);
     this.unBindURLChangeListener();
   }
 
@@ -147,14 +150,14 @@ class HubMainScreen extends React.Component {
       //     state.search.query = this.defaultSearchQuery;
       //   }
 
-      this.setContextFilter(state.contextFilter, null, false);
+      this.setContextFilter(state.contextFilter, null, false, false);
       if (!deepEqual(state.search, this.state.context.search)) {
         this.setSearchState(state.search, () => {
           this.searchByQuery(false).then(() => {
             this.setChartFocusedState(state.chart.focused, null, false);
             this.setChartSettingsState(state.chart.settings, this.groupRuns, false);
           });
-        }, false);
+        }, false, false);
       } else {
         this.setChartFocusedState(state.chart.focused, null, false);
         this.setChartSettingsState(state.chart.settings, null, false);
@@ -169,14 +172,14 @@ class HubMainScreen extends React.Component {
           query: setSearchQuery,
         }, () => {
           this.searchByQuery().then(() => { });
-        }, true);
+        }, true, false, true);
       }
     }
   };
 
   stateToURL = (state) => {
     const encodedState = btoa(JSON.stringify(state));
-    const URL = buildUrl(screens.MAIN_SEARCH, {
+    const URL = buildUrl(screens.EXPLORE_SEARCH, {
       search: encodedState,
     });
     return URL;
@@ -201,22 +204,24 @@ class HubMainScreen extends React.Component {
     }
 
     for (let p in this.URLStateParams) {
-      if (!deepEqual(getObjectValueByPath(state, this.URLStateParams[p]),
-        getObjectValueByPath(this.state.context, this.URLStateParams[p]))) {
+      if (!deepEqual(getObjectValueByPath(state, this.URLStateParams[p]) ?? {},
+        getObjectValueByPath(this.state.context, this.URLStateParams[p]) ?? {})) {
         return true;
       }
     }
     return false;
   };
 
-  updateURL = () => {
+  updateURL = (replace = false) => {
     if (!this.isURLStateOutdated(window.location.search)) {
       return;
     }
 
     const state = {
       chart: {
-        settings: this.state.context.chart.settings,
+        settings: {
+          persistent: this.state.context.chart.settings.persistent,
+        },
         focused: {
           circle: this.state.context.chart.focused.circle,
         },
@@ -230,8 +235,14 @@ class HubMainScreen extends React.Component {
 
     const URL = this.stateToURL(state);
     if (window.location.pathname + window.location.search !== URL) {
-      console.log(`Update: URL(${URL})`);
-      this.props.history.push(URL);
+      if (replace) {
+        this.props.history.replace(URL);
+        console.log(`Replace: URL(${URL})`);
+      } else {
+        this.props.history.push(URL);
+        console.log(`Update: URL(${URL})`);
+      }
+
       if (state.search.query !== null) {
         setItem(USER_LAST_SEARCH_QUERY, state.search.query);
       }
@@ -273,7 +284,7 @@ class HubMainScreen extends React.Component {
     });
   };
 
-  setSearchState = (searchState, callback = null, updateURL = true) => {
+  setSearchState = (searchState, callback = null, updateURL = true, resetZoom = true, replaceURL = false) => {
     this.setState(prevState => ({
       ...prevState,
       context: {
@@ -286,30 +297,27 @@ class HubMainScreen extends React.Component {
           ...prevState.context.searchInput,
           value: searchState.query || prevState.context.searchInput.value,
         },
+        ...resetZoom && {
+          chart: {
+            ...prevState.context.chart,
+            settings: {
+              ...prevState.context.chart.settings,
+              zoomMode: false,
+              zoomHistory: [],
+              persistent: {
+                ...prevState.context.chart.settings,
+                zoom: null
+              }
+            }
+          }
+        }
       },
     }), () => {
       if (callback !== null) {
         callback();
       }
       if (updateURL) {
-        this.updateURL();
-      }
-    });
-  };
-
-  setSearchInputValue = (value, callback = null) => {
-    this.setState(prevState => ({
-      ...prevState,
-      context: {
-        ...prevState.context,
-        searchInput: {
-          ...prevState.context.searchInput,
-          value,
-        },
-      },
-    }), () => {
-      if (callback !== null) {
-        callback();
+        this.updateURL(replaceURL);
       }
     });
   };
@@ -436,7 +444,7 @@ class HubMainScreen extends React.Component {
     runs.forEach((run) => {
       run.metrics.forEach((metric) => {
         metric.traces.forEach((trace) => {
-          traceList.addSeries(run, metric, trace, this.state.context.chart.settings.xAlignment);
+          traceList.addSeries(run, metric, trace, this.state.context.chart.settings.persistent.xAlignment);
         });
       });
     });
@@ -537,19 +545,7 @@ class HubMainScreen extends React.Component {
     return this.hashToColor(hash, alpha);
   };
 
-  toggleOutliers = () => {
-    this.setChartSettingsState({
-      displayOutliers: !this.state.context.chart.settings.displayOutliers
-    });
-  };
-
-  changeXAlignment = (type) => {
-    this.setChartSettingsState({
-      xAlignment: type
-    });
-  };
-
-  setContextFilter = (contextFilter, callback = this.groupRuns, updateURL = true) => {
+  setContextFilter = (contextFilter, callback = this.groupRuns, updateURL = true, resetZoom = true) => {
     this.setState(prevState => {
       let stateUpdate = {
         ...prevState,
@@ -561,6 +557,12 @@ class HubMainScreen extends React.Component {
           },
         },
       };
+
+      if (resetZoom && contextFilter.hasOwnProperty('groupByChart')) {
+        stateUpdate.context.chart.settings.persistent.zoom = null;
+        stateUpdate.context.chart.settings.zoomMode = false;
+        stateUpdate.context.chart.settings.zoomHistory = [];
+      }
 
       if (
         stateUpdate.context.contextFilter.aggregated &&
@@ -582,6 +584,12 @@ class HubMainScreen extends React.Component {
     });
   };
 
+  handleSearchBarSubmit = (value = '') => {
+    this.setSearchState({ query: value }, () => {
+      this.searchByQuery(true).then();
+    }, false);
+  };
+
   _renderContent = () => {
     const headerWidth = 70;
     const controlsWidth = 75;
@@ -600,7 +608,12 @@ class HubMainScreen extends React.Component {
           <div className='HubMainScreen__grid'>
             <div className='HubMainScreen__grid__body'>
               <div className='HubMainScreen__grid__search-filter'>
-                <SearchBar />
+                <SearchBar
+                  placeholder={'e.g. `loss if experiment == nmt_syntok and hparams.lr >= 0.0001`'}
+                  initValue={this.state.context.search.query}
+                  onSubmit={(value) => this.handleSearchBarSubmit(value)}
+                  onClear={(value) => this.handleSearchBarSubmit(value)}
+                />
               </div>
               <div className='HubMainScreen__grid__panel' >
                 <Panel
@@ -646,7 +659,6 @@ class HubMainScreen extends React.Component {
             setChartSettingsState: this.setChartSettingsState,
             setChartFocusedState: this.setChartFocusedState,
             setSearchState: this.setSearchState,
-            setSearchInputValue: this.setSearchInputValue,
             setRunsState: this.setRunsState,
             getMetricByHash: this.getMetricByHash,
             getTraceData: this.getTraceData,
@@ -660,8 +672,6 @@ class HubMainScreen extends React.Component {
             contextToHash: this.contextToHash,
             traceToHash: this.traceToHash,
             updateURL: this.updateURL,
-            toggleOutliers: this.toggleOutliers,
-            changeXAlignment: this.changeXAlignment,
             setContextFilter: this.setContextFilter,
           }}
         >

@@ -9,7 +9,7 @@ import _ from 'lodash';
 
 import * as classes from '../../../../../../../constants/classes';
 import * as storeUtils from '../../../../../../../storeUtils';
-import { classNames, buildUrl, removeOutliers } from '../../../../../../../utils';
+import { classNames, buildUrl, removeOutliers, formatValue } from '../../../../../../../utils';
 import {
   HUB_PROJECT_EXPERIMENT,
   HUB_PROJECT_EXECUTABLE_PROCESS_DETAIL,
@@ -96,6 +96,9 @@ class PanelChart extends Component {
     this.axes = null;
     this.lines = null;
     this.attributes = null;
+    this.brush = null;
+
+    this.idleTimeout = null;
 
     this.curves =  [
       'curveLinear',
@@ -197,20 +200,6 @@ class PanelChart extends Component {
     const width = this.props.width ? this.props.width : parentWidth;
     const height = this.props.height ? this.props.height : parentHeight;
 
-    function formatGroupedValue(value) {
-      if (value === null || value === undefined) {
-        return 'None';
-      }
-      if (value === true) {
-        return 'True';
-      }
-      if (value === false) {
-        return 'False';
-      }
-  
-      return value;
-    }
-
     this.setState({
       ...this.state,
       visBox: {
@@ -239,14 +228,14 @@ class PanelChart extends Component {
           .attr('text-anchor', 'middle')  
           .style('font-size', '0.7em') 
           .text(
-            this.context.traceList?.grouping.chart.map(key => {
-              return key + '=' + formatGroupedValue(this.context.traceList.traces.find(elem => elem.chart === this.props.index)?.config[key]);
-            }).join(', ')
+            this.context.traceList?.grouping.chart.length > 0 ? `#${this.props.index + 1} ${this.context.traceList?.grouping.chart.map(key => {
+              return key + '=' + formatValue(this.context.traceList.traces.find(elem => elem.chart === this.props.index)?.config[key]);
+            }).join(', ')}` : ''
           ).append('svg:title')
           .text(
-            this.context.traceList?.grouping.chart.map(key => {
-              return key + '=' + formatGroupedValue(this.context.traceList.traces.find(elem => elem.chart === this.props.index)?.config[key]);
-            }).join(', ')
+            this.context.traceList?.grouping.chart.length > 0 ? `#${this.props.index + 1} ${this.context.traceList?.grouping.chart.map(key => {
+              return key + '=' + formatValue(this.context.traceList.traces.find(elem => elem.chart === this.props.index)?.config[key]);
+            }).join(', ')}` : ''
           );
       }
 
@@ -275,6 +264,16 @@ class PanelChart extends Component {
 
       this.attributes = this.plot.append('g');
 
+      if (this.context.chart.settings.zoomMode) {
+        this.brush = d3.brush()
+          .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])
+          .on('end', this.handleZoomChange);
+
+        this.svg.append('g')
+          .attr('class', 'brush')
+          .call(this.brush);
+      }
+
       if (cb) {
         cb();
       }
@@ -283,7 +282,7 @@ class PanelChart extends Component {
 
   drawAxes = (cb) => {
     const { width, height, margin } = this.state.visBox;
-    const { xAlignment } = this.context.chart.settings;
+    const { xAlignment } = this.context.chart.settings.persistent;
 
     let xNum = 0, xMax = 0, xMin = Infinity, xSteps = [];
 
@@ -308,12 +307,12 @@ class PanelChart extends Component {
     }));
 
     const xScale = d3.scaleLinear()
-      .domain([xMin, xMax])
+      .domain(this.context.chart.settings.persistent.zoom?.[this.props.index]?.x ?? [xMin, xMax])
       .range([0, width - margin.left - margin.right]);
 
     let yMax = null, yMin = null;
 
-    if (this.context.chart.settings.displayOutliers) {
+    if (this.context.chart.settings.persistent.displayOutliers) {
       this.context.traceList?.traces.forEach(traceModel => traceModel.series.forEach(series => {
         if (traceModel.chart !== this.props.index) {
           return;
@@ -372,7 +371,7 @@ class PanelChart extends Component {
     }
 
     const yScale = yScaleBase
-      .domain([yMin, yMax])
+      .domain(this.context.chart.settings.persistent.zoom?.[this.props.index]?.y ?? [yMin, yMax])
       .range([height - margin.top - margin.bottom, 0]);
 
     this.axes.append('g')
@@ -411,7 +410,7 @@ class PanelChart extends Component {
       const line = d3.line()
         .x((d, i) => this.state.chart.xScale(trace.axesValues[i]))
         .y(d => this.state.chart.yScale(d[0]))
-        .curve(d3[this.curves[5]]);
+        .curve(d3[this.curves[this.context.chart.settings.persistent.interpolate ? 5 : 0]]);
 
       this.lines.append('path')
         .attr('class', 'PlotLine PlotLine-' + this.context.traceToHash(run.run_hash, metric.name, trace.context))
@@ -449,7 +448,7 @@ class PanelChart extends Component {
         .x((d, i) => this.state.chart.xScale(d[1]))
         .y0((d, i) => this.state.chart.yScale(d[0]))
         .y1((d, i) => this.state.chart.yScale(traceMin.data[i][0]))
-        .curve(d3[this.curves[5]]);
+        .curve(d3[this.curves[this.context.chart.settings.interpolate ? 5 : 0]]);
 
       this.lines.append('path')
         .attr('class', 'PlotArea' + (traceModel.hasRun(focusedLineAttr?.runHash, focusedLineAttr?.metricName, focusedLineAttr?.traceContext) ? ' active' : ''))
@@ -464,7 +463,7 @@ class PanelChart extends Component {
       const line = d3.line()
         .x(d => this.state.chart.xScale(d[1]))
         .y(d => this.state.chart.yScale(d[0]))
-        .curve(d3[this.curves[5]]);
+        .curve(d3[this.curves[this.context.chart.settings.interpolate ? 5 : 0]]);
 
       this.lines.append('path')
         .attr('class', 'PlotLine ' + 'PlotLine-' + this.context.traceToHash(runAvg.run_hash, metricAvg.name, traceAvg.context))
@@ -485,7 +484,6 @@ class PanelChart extends Component {
 
   drawHoverAttributes = () => {
     const focused = this.context.chart.focused;
-    const { xAlignment } = this.context.chart.settings;
     if (focused.runHash === null || focused.circle.active === false) {
       this.hideActionPopUps(false);
     }
@@ -684,6 +682,63 @@ class PanelChart extends Component {
       });
   };
 
+  idled = () => { 
+    this.idleTimeout = null;
+  };
+
+  handleZoomChange = () => {
+    let extent = d3.event.selection;
+
+    // If no selection, back to initial coordinate. Otherwise, update X axis domain
+    if (!extent) {
+      if (!this.idleTimeout) {
+        return this.idleTimeout = setTimeout(this.idled, 350); // This allows to wait a little bit
+      }
+      this.context.setChartSettingsState({
+        ...this.context.chart.settings,
+        persistent: {
+          ...this.context.chart.settings.persistent,
+          zoom: null
+        }
+      });
+    } else {
+      const { margin } = this.state.visBox;
+
+      let left = this.state.chart.xScale.invert(extent[0][0] - margin.left);
+      let right = this.state.chart.xScale.invert(extent[1][0] - margin.left);
+      
+      let top = this.state.chart.yScale.invert(extent[0][1] - margin.top);
+      let bottom = this.state.chart.yScale.invert(extent[1][1] - margin.top);
+      
+      let [xMin, xMax] = this.state.chart.xScale.domain();
+      let [yMin, yMax] = this.state.chart.yScale.domain();
+
+      this.context.setChartSettingsState({
+        ...this.context.chart.settings,
+        zoomMode: false,
+        zoomHistory: [[this.props.index, this.context.chart.settings.persistent.zoom?.[this.props.index] ?? null]].concat(this.context.chart.settings.zoomHistory),
+        persistent: {
+          ...this.context.chart.settings.persistent,
+          zoom: {
+            ...this.context.chart.settings.persistent.zoom ?? {},
+            [this.props.index]: {
+              x: (extent[1][0] - extent[0][0]) < 50 ? null : [
+                left < xMin ? xMin : left,
+                right > xMax ? xMax : right,
+              ],
+              y: (extent[1][1] - extent[0][1]) < 50 ? null : [
+                bottom < yMin ? yMin : bottom,
+                top > yMax ? yMax : top,
+              ],
+            }
+          },
+        }
+      });
+      // This remove the grey brush area as soon as the selection has been done
+      this.svg.select('.brush').call(this.brush.move, null);
+    }
+  };
+
   handleAreaMouseMove = (mouse) => {
     // Disable hover effects if circle is focused
     if (this.context.chart.focused.circle.active) {
@@ -754,7 +809,7 @@ class PanelChart extends Component {
         traceContext: null,
       },
     }, () => {
-      let activeRow = document.querySelector('.ContextBox__table__item.active');
+      let activeRow = document.querySelector('.Table__item.active');
       if (activeRow) {
         activeRow.scrollIntoView({ block: 'center',  behavior: 'smooth' })
       }

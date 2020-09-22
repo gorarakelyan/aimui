@@ -19,16 +19,19 @@ function GroupByStyle(props) {
 
   return (
     <div className='ControlsSidebar__item__wrapper'>
-      <div
-        className={classNames({
-          ControlsSidebar__item: true,
-          active: opened || groupByStyle.length > 0
-        })}
-        onClick={evt => setOpened(!opened)}
-        title={groupByStyle.length > 0 ? `Styled by ${groupByStyle.length} field${groupByStyle.length > 1 ? 's' : ''}` : 'Group by style'}
+      <UI.Tooltip
+        tooltip={groupByStyle.length > 0 ? `Styled by ${groupByStyle.length} field${groupByStyle.length > 1 ? 's' : ''}` : 'Group by style'}
       >
-        <UI.Icon i='line_style' scale={1.7} />
-      </div>
+        <div
+          className={classNames({
+            ControlsSidebar__item: true,
+            active: opened || groupByStyle.length > 0
+          })}
+          onClick={evt => setOpened(!opened)}
+        >
+          <UI.Icon i='line_style' scale={1.7} />
+        </div>
+      </UI.Tooltip>
       {opened && (
         <div
           className='ControlsSidebar__item__popup'
@@ -69,16 +72,21 @@ function GroupByStyle(props) {
             {groupByStyle.length > 0 && (
               <div className='ControlsSidebar__item__popup__body__fields'>
                 {groupByStyle.map(field => (
-                  <UI.Tag
+                  <UI.Button
                     key={field}
                     size='tiny'
                     className='ControlsSidebar__item__popup__body__field'
-                    onRemove={evt => props.setContextFilter({
-                      groupByStyle: groupByStyle.filter(elem => elem !== field)
-                    })}
+                    iconRight={
+                      <UI.Icon
+                        i='close'
+                        onClick={evt => props.setContextFilter({
+                          groupByStyle: groupByStyle.filter(elem => elem !== field)
+                        })}
+                      />
+                    }
                   >
                     {field}
-                  </UI.Tag>
+                  </UI.Button>
                 ))}
               </div>
             )}

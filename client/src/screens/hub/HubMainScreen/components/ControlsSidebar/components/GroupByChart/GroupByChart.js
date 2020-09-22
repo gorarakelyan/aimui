@@ -19,16 +19,19 @@ function GroupByChart(props) {
 
   return (
     <div className='ControlsSidebar__item__wrapper'>
-      <div
-        className={classNames({
-          ControlsSidebar__item: true,
-          active: opened || groupByChart.length > 0
-        })}
-        onClick={evt => setOpened(!opened)}
-        title={groupByChart.length > 0 ? `Divided into charts by ${groupByChart.length} field${groupByChart.length > 1 ? 's' : ''}` : 'Divide into charts'}
+      <UI.Tooltip
+        tooltip={groupByChart.length > 0 ? `Divided into charts by ${groupByChart.length} field${groupByChart.length > 1 ? 's' : ''}` : 'Divide into charts'}
       >
-        <UI.Icon i='dashboard' scale={1.7} />
-      </div>
+        <div
+          className={classNames({
+            ControlsSidebar__item: true,
+            active: opened || groupByChart.length > 0
+          })}
+          onClick={evt => setOpened(!opened)}
+        >
+          <UI.Icon i='dashboard' scale={1.7} />
+        </div>
+      </UI.Tooltip>
       {opened && (
         <div
           className='ControlsSidebar__item__popup'
@@ -69,16 +72,21 @@ function GroupByChart(props) {
             {groupByChart.length > 0 && (
               <div className='ControlsSidebar__item__popup__body__fields'>
                 {groupByChart.map(field => (
-                  <UI.Tag
+                  <UI.Button
                     key={field}
                     size='tiny'
                     className='ControlsSidebar__item__popup__body__field'
-                    onRemove={evt => props.setContextFilter({
-                      groupByChart: groupByChart.filter(elem => elem !== field)
-                    })}
+                    iconRight={
+                      <UI.Icon
+                        i='close'
+                        onClick={evt => props.setContextFilter({
+                          groupByChart: groupByChart.filter(elem => elem !== field)
+                        })}
+                      />
+                    }
                   >
                     {field}
-                  </UI.Tag>
+                  </UI.Button>
                 ))}
               </div>
             )}
