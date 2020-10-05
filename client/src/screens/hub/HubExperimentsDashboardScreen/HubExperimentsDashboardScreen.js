@@ -27,6 +27,7 @@ import { HUB_PROJECT_EXPERIMENT, EXPLORE } from '../../../constants/screens';
 import { setItem } from '../../../services/storage';
 import { USER_LAST_SEARCH_QUERY } from '../../../config';
 import moment from 'moment';
+import { TableNew } from '../../../ui/components/Table/Table';
 
 
 class HubExperimentsDashboardScreen extends React.Component {
@@ -429,10 +430,71 @@ class HubExperimentsDashboardScreen extends React.Component {
       return null;
     }
 
+    let columns = [{ key: 'run', content: 'Runs', width: 200 }];
+    let data = this.state.runs.map(run => {
+      let item = {
+        run: (
+          <Link
+            to={buildUrl(HUB_PROJECT_EXPERIMENT, {
+              experiment_name: run.experiment_name,
+              commit_id: run.run_hash,
+            })}
+          >
+            <UI.Text
+              className='HubExperimentsDashboardScreen__runs__item__name'
+            >
+              {run.experiment_name} | {moment(run.date * 1000).format('HH:mm · D MMM, YY')}
+            </UI.Text>
+          </Link>
+        ),
+      };
+
+      Object.keys(this.paramKeys).forEach(paramKey => this.paramKeys[paramKey].forEach(key => {
+        item[`${paramKey}-${key}`] = formatValue(run.params?.[paramKey]?.[key], true)
+      }));
+
+      return item;
+    });
+
+    Object.keys(this.paramKeys).forEach(paramKey => this.paramKeys[paramKey].forEach((key, index) => {
+      columns.push({
+        key: `${paramKey}-${key}`,
+        content: (
+          <>
+            <UI.Text className='Table__subheader__item__name'>{key}</UI.Text>
+            <UI.Tooltip
+              tooltip={
+                !this.checkAbilityForColoring(['params', paramKey, key]) ? (
+                  'Unable to apply coloring to this column'
+                ) : !!this.state.coloredCols[JSON.stringify(['params', paramKey, key])] ? (
+                  'Remove coloring'
+                ) : 'Apply coloring'
+              }
+            >
+              <div
+                className={classNames({
+                  Table__header__action: true,
+                  active: !!this.state.coloredCols[JSON.stringify(['params', paramKey, key])],
+                  disabled: !this.checkAbilityForColoring(['params', paramKey, key])
+                })}
+                onClick={evt => this.toggleColoring(['params', paramKey, key])}
+              >
+                <UI.Icon
+                  i='filter_list'
+                  className='Table__header__action__icon'
+                />
+              </div>
+            </UI.Tooltip>
+          </>
+        ),
+        width: 150
+      })
+    }));
+
     return (
       <div className='HubExperimentsDashboardScreen__runs__content'>
         <div className='HubExperimentsDashboardScreen__runs__table__wrapper'>
-          <UI.Table>
+          {/* <UI.Table>
             <thead>
               <tr className='Table__topheader' ref={this.topHeaderRef}>
                 <th>
@@ -638,7 +700,11 @@ class HubExperimentsDashboardScreen extends React.Component {
                 </tr>
               )}
             </tbody>
-          </UI.Table>
+          </UI.Table> */}
+          <TableNew
+            columns={columns}
+            data={data}
+          />
         </div>
       </div>
     );

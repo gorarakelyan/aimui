@@ -11,6 +11,7 @@ import * as classes from '../../../constants/classes';
 import * as screens from '../../../constants/screens';
 import { buildUrl } from '../../../utils';
 import * as analytics from '../../../services/analytics';
+import { TableNew } from '../../../ui/components/Table/Table';
 
 
 class HubTagsScreen extends React.Component {
@@ -108,6 +109,46 @@ class HubTagsScreen extends React.Component {
 
         <UI.Container size='small'>
           {this._renderContent()}
+          <TableNew
+            columns={[
+              { key: 'name', content: 'Name', width: 200 },
+              { key: 'city', content: 'City' }
+            ]}
+            data={[
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+              { name: 'Dan Stevenson', city: 'Los Angeles' },
+              { name: 'Talisha Babin', city: 'Paris' },
+            ]}
+          />
         </UI.Container>
       </ProjectWrapper>
     )
