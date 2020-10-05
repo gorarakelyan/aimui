@@ -3,21 +3,23 @@ import './HubMainScreen.less';
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import { withRouter } from 'react-router-dom';
+import * as _ from 'lodash';
 
 import ProjectWrapper from '../../../wrappers/hub/ProjectWrapper/ProjectWrapper';
 import * as classes from '../../../constants/classes';
 import * as screens from '../../../constants/screens';
 import * as storeUtils from '../../../storeUtils';
 import HubMainScreenContext from './HubMainScreenContext/HubMainScreenContext';
-import { setItem, getItem } from '../../../services/storage';
-import { USER_LAST_SEARCH_QUERY, AIM_QL_VERSION } from '../../../config';
+import { setItem, getItem, removeItem } from '../../../services/storage';
+import { USER_LAST_SEARCH_QUERY, AIM_QL_VERSION, USER_LAST_EXPLORE_CONFIG, EXPLORE_PANEL_FLEX_STYLE } from '../../../config';
 import Panel from './components/Panel/Panel';
 import SearchBar from '../../../components/hub/SearchBar/SearchBar';
 import ContextBox from './components/ContextBox/ContextBox';
 import ControlsSidebar from './components/ControlsSidebar/ControlsSidebar';
-import { randomStr, deepEqual, buildUrl, getObjectValueByPath } from '../../../utils';
+import { randomStr, deepEqual, buildUrl, getObjectValueByPath, classNames } from '../../../utils';
 import * as analytics from '../../../services/analytics';
 import TraceList from './models/TraceList';
+import UI from '../../../ui';
 
 class HubMainScreen extends React.Component {
   constructor(props) {
@@ -26,6 +28,8 @@ class HubMainScreen extends React.Component {
     this.state = {
       height: 0,
       width: 0,
+      resizing: false,
+      panelFlex: getItem(EXPLORE_PANEL_FLEX_STYLE),
 
       // Context state
       context: {
@@ -88,7 +92,7 @@ class HubMainScreen extends React.Component {
     };
 
     this.projectWrapperRef = React.createRef();
-    this.panelRef = React.createRef();
+    this.searchBarRef = React.createRef();
 
     this.URLStateParams = [
       'chart.focused.circle',
@@ -102,9 +106,6 @@ class HubMainScreen extends React.Component {
 
   componentWillMount() {
     this.props.resetProgress();
-    this.unBindURLChangeListener = this.props.history.listen((location) => {
-      this.recoverStateFromURL(location.search);
-    });
   }
 
   componentDidMount() {
@@ -117,10 +118,73 @@ class HubMainScreen extends React.Component {
     analytics.pageView('search');
   }
 
+  componentDidUpdate(prevProps, prevState) {
+    if (this.props.location !== prevProps.location) {
+      this.recoverStateFromURL(location.search);
+    }
+  }
+
   componentWillUnmount() {
     window.removeEventListener('resize', this.updateWindowDimensions);
-    this.unBindURLChangeListener();
+    document.removeEventListener('mouseup', this.endResize);
+    document.removeEventListener('mousemove', this.resizeHandler);
   }
+
+  getInitialControls = () => {
+    return {
+      // Chart config
+      chart: {
+        settings: {
+          yScale: 0,
+          zoomMode: false,
+          zoomHistory: [],
+          persistent: {
+            displayOutliers: false,
+            zoom: null,
+            interpolate: false,
+          }
+        },
+      },
+
+      // Filter panel
+      contextFilter: {
+        groupByColor: [],
+        groupByStyle: [],
+        groupByChart: [],
+        aggregated: false
+      },
+    };
+  };
+
+  resetControls = () => {
+    let initialControls = this.getInitialControls();
+    this.setState(prevState => ({
+      context: {
+        ...prevState.context,
+        chart: {
+          ...prevState.context.chart,
+          settings: initialControls.chart.settings,
+        },
+        contextFilter: initialControls.contextFilter
+      }
+    }), () => {
+      this.updateURL();
+      this.groupRuns();
+      removeItem(USER_LAST_EXPLORE_CONFIG);
+    });
+  };
+
+  areControlsChanged = () => {
+    return !_.isEqual(
+      {
+        chart: {
+          settings: this.state.context.chart.settings
+        },
+        contextFilter: this.state.context.contextFilter
+      },
+      this.getInitialControls()
+    );
+  };
 
   updateWindowDimensions = () => {
     const wrapper = this.projectWrapperRef.current;
@@ -133,6 +197,31 @@ class HubMainScreen extends React.Component {
     } else {
       setTimeout(() => this.updateWindowDimensions(), 25);
     }
+  };
+
+  startResize = () => {
+    document.addEventListener('mouseup', this.endResize);
+    document.addEventListener('mousemove', this.resizeHandler);
+    document.body.style.cursor = 'row-resize';
+    this.setState({ resizing: true });
+  };
+
+  endResize = () => {
+    document.removeEventListener('mouseup', this.endResize);
+    document.removeEventListener('mousemove', this.resizeHandler);
+    document.body.style.cursor = 'auto';
+    this.setState({ resizing: false }, () => {
+      setItem(EXPLORE_PANEL_FLEX_STYLE, this.state.panelFlex);
+    });
+  };
+
+  resizeHandler = (evt) => {
+    window.requestAnimationFrame(() => {
+      const searchBarHeight = this.searchBarRef.current.clientHeight;
+      const height = evt.clientY - this.projectWrapperRef.current.getHeaderHeight() - searchBarHeight;
+      const flex = height / (this.state.height - searchBarHeight);
+      this.setState({ panelFlex: flex });
+    });
   };
 
   recoverStateFromURL = (search) => {
@@ -150,7 +239,7 @@ class HubMainScreen extends React.Component {
       //     state.search.query = this.defaultSearchQuery;
       //   }
 
-      this.setContextFilter(state.contextFilter, null, false, false);
+      this.setContextFilter(state.contextFilter, this.groupRuns, false, false);
       if (!deepEqual(state.search, this.state.context.search)) {
         this.setSearchState(state.search, () => {
           this.searchByQuery(false).then(() => {
@@ -234,6 +323,7 @@ class HubMainScreen extends React.Component {
     };
 
     const URL = this.stateToURL(state);
+    setItem(USER_LAST_EXPLORE_CONFIG, URL);
     if (window.location.pathname + window.location.search !== URL) {
       if (replace) {
         this.props.history.replace(URL);
@@ -607,7 +697,7 @@ class HubMainScreen extends React.Component {
         <div className='HubMainScreen'>
           <div className='HubMainScreen__grid'>
             <div className='HubMainScreen__grid__body'>
-              <div className='HubMainScreen__grid__search-filter'>
+              <div className='HubMainScreen__grid__search-filter' ref={this.searchBarRef}>
                 <SearchBar
                   placeholder={'e.g. `loss if experiment == nmt_syntok and hparams.lr >= 0.0001`'}
                   initValue={this.state.context.search.query}
@@ -615,17 +705,41 @@ class HubMainScreen extends React.Component {
                   onClear={(value) => this.handleSearchBarSubmit(value)}
                 />
               </div>
-              <div className='HubMainScreen__grid__panel' >
+              <div
+                className='HubMainScreen__grid__panel'
+                style={{
+                  flex: this.state.panelFlex
+                }}
+              >
                 <Panel
-                  ref={this.panelRef}
                   parentHeight={this.state.height}
                   parentWidth={this.state.width}
                   indices={panelIndices}
+                  resizing={this.state.resizing}
                 />
               </div>
-              <div className='HubMainScreen__grid__context'>
+              <div
+                className='HubMainScreen__grid__resize__area'
+                onMouseDown={this.startResize}
+              >
+                <div
+                  className={classNames({
+                    HubMainScreen__grid__resize__handler: true,
+                    active: this.state.resizing
+                  })}
+                >
+                  <div className='HubMainScreen__grid__resize__icon' />
+                </div>
+              </div>
+              <div
+                className='HubMainScreen__grid__context'
+                style={{
+                  flex: 1 - this.state.panelFlex
+                }}
+              >
                 <ContextBox
                   width={this.state.width - headerWidth - controlsWidth - 10}
+                  resizing={this.state.resizing}
                 />
               </div>
             </div>
@@ -673,6 +787,8 @@ class HubMainScreen extends React.Component {
             traceToHash: this.traceToHash,
             updateURL: this.updateURL,
             setContextFilter: this.setContextFilter,
+            resetControls: this.resetControls,
+            areControlsChanged: this.areControlsChanged,
           }}
         >
           {this._renderContent()}
