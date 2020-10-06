@@ -139,15 +139,31 @@
 
 .Table {
   height: 100%;
+  width: 100%;
   overflow: auto;
   position: relative;
   box-sizing: border-box;
-  box-shadow: 1px -1px 0px 0px var(--grey-lighter);
+  border: 1px solid #CCC;
+  background: #FFF;
+  border-radius: var(--border-radius);
 }
 
 .Table__header {
   position: sticky;
   top: 0;
+  z-index: 2;
+}
+
+.Table__body {
+  width: 100%;
+  .Table__row {
+    &:last-of-type {
+      .Table__cell {
+        border-bottom: none;
+        box-shadow: 0 1px 0 0 var(--grey-lighter);
+      }
+    }
+  }
 }
 
 .Table__row {
@@ -156,19 +172,29 @@
 
 .Table__cell {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: space-between;
   font-size: var(--text-sm);
   color: var(--grey);
   padding: var(--space-sm);
-  box-shadow: inset 1px -1px 0 0 var(--grey-lighter), 1px -1px 0 0 var(--grey-lighter);
+  border-bottom: 1px solid var(--grey-lighter);
+  border-right: 1px solid var(--grey-lighter);
   text-align: left;
   box-sizing: border-box;
+  background-color: #FFF;
+
+  &:last-of-type {
+    border-right: none;
+  }
 }
 
 .Table__cell--header {
   background-color: var(--grey-bg);
   padding: var(--space-xxs) var(--space-sm);
   font-size: var(--text-md);
+  border-color: #CCC;
+  color: var(--grey-dark);
   font-weight: bold;
+  z-index: 2;
 }
