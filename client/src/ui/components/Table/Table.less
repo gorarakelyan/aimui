@@ -183,13 +183,23 @@
   text-align: left;
   box-sizing: border-box;
   background-color: #FFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   &:last-of-type {
     border-right: none;
   }
+
+  & > * {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .Table__cell--header {
+  flex: none;
   background-color: var(--grey-bg);
   padding: var(--space-xxs) var(--space-sm);
   font-size: var(--text-md);

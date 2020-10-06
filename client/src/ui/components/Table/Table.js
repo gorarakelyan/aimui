@@ -1,6 +1,6 @@
 import './Table.less';
 
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { classNames } from '../../../utils';
 
 function Table(props) {
@@ -12,6 +12,13 @@ function Table(props) {
 }
 
 export function TableNew(props) {
+  let colsWidth = useRef({});
+  let [] = useState();
+
+  useEffect(() => {
+
+  });
+
   return (
     <div className='Table'>
       <div className='Table__header'>
@@ -20,6 +27,7 @@ export function TableNew(props) {
             props.columns.map(col => (
               <div
                 key={col.key}
+                ref={elem => colsWidth.current[col.key] = elem?.getBoundingClientRect().width}
                 className='Table__cell Table__cell--header'
                 style={{
                   minWidth: col.width,
@@ -49,7 +57,7 @@ export function TableNew(props) {
                       [`${typeof item[col.key] === 'object' && item[col.key].className}`]: true
                     })}
                     style={{
-                      minWidth: col.width,
+                      minWidth: colsWidth.current[col.key] ?? col.width,
                       cursor: typeof item[col.key] === 'object' && item[col.key].onClick ? 'pointer' : 'auto',
                       ...col.stick && {
                         position: 'sticky',

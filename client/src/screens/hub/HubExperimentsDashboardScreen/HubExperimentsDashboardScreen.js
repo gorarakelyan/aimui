@@ -436,7 +436,7 @@ class HubExperimentsDashboardScreen extends React.Component {
         <UI.Buttons className=''>
           <UI.Button
             type='positive'
-            size='small'
+            size='tiny'
             onClick={this.exploreRuns}
             iconLeft={<UI.Icon i='timeline' />}
           >
@@ -444,7 +444,7 @@ class HubExperimentsDashboardScreen extends React.Component {
           </UI.Button>
           <UI.Button
             type='secondary'
-            size='small' 
+            size='tiny' 
             onClick={() => this.resetRuns()}
           >
             Reset
