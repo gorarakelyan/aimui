@@ -451,7 +451,7 @@ class HubExperimentsDashboardScreen extends React.Component {
           </UI.Button>
         </UI.Buttons>
       ) : 'Runs',
-      width: 250,
+      minWidth: 200,
       stick: 'left' 
     }];
 
@@ -519,7 +519,7 @@ class HubExperimentsDashboardScreen extends React.Component {
             </div>
           </>
         ),
-        width: 200,
+        minWidth: 180,
       });
     }));
 
@@ -554,7 +554,7 @@ class HubExperimentsDashboardScreen extends React.Component {
             </UI.Tooltip>
           </>
         ),
-        width: 150
+        minWidth: 150
       })
     }));
 

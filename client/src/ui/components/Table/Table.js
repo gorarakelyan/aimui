@@ -13,11 +13,11 @@ function Table(props) {
 
 export function TableNew(props) {
   let colsWidth = useRef({});
-  let [] = useState();
+  let [widths, setWidths] = useState();
 
   useEffect(() => {
-
-  });
+    setWidths(colsWidth.current);
+  }, [props.columns, props.data]);
 
   return (
     <div className='Table'>
@@ -30,7 +30,14 @@ export function TableNew(props) {
                 ref={elem => colsWidth.current[col.key] = elem?.getBoundingClientRect().width}
                 className='Table__cell Table__cell--header'
                 style={{
-                  minWidth: col.width,
+                  ...widths ? {
+                    minWidth: widths[col.key],
+                    maxWidth: widths[col.key],
+                  } : {
+                    flex: 'none',
+                    minWidth: col.minWidth,
+                    maxWidth: col.maxWidth,
+                  },
                   ...col.stick && {
                     position: 'sticky',
                     [col.stick]: 0,
@@ -52,13 +59,25 @@ export function TableNew(props) {
                 props.columns.map(col => (
                   <div
                     key={col.key}
+                    ref={elem => {
+                      if (elem?.getBoundingClientRect().width > colsWidth.current[col.key]) {
+                        colsWidth.current[col.key] = elem?.getBoundingClientRect().width;
+                      }
+                    }}
                     className={classNames({
                       Table__cell: true,
                       [`${typeof item[col.key] === 'object' && item[col.key].className}`]: true
                     })}
                     style={{
-                      minWidth: colsWidth.current[col.key] ?? col.width,
                       cursor: typeof item[col.key] === 'object' && item[col.key].onClick ? 'pointer' : 'auto',
+                      ...widths ? {
+                        minWidth: widths[col.key],
+                        maxWidth: widths[col.key],
+                      } : {
+                        flex: 'none',
+                        minWidth: col.minWidth,
+                        maxWidth: col.maxWidth,
+                      },
                       ...col.stick && {
                         position: 'sticky',
                         [col.stick]: 0,
